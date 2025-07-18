@@ -1,9 +1,20 @@
 # Gunicorn配置文件
 import multiprocessing
+import os
 
 # 服务器socket
 bind = "0.0.0.0:5000"
 backlog = 2048
+
+# SSL配置 - 如果证书文件存在则启用HTTPS
+cert_file = "cert.pem"
+key_file = "key.pem"
+if os.path.exists(cert_file) and os.path.exists(key_file):
+    certfile = cert_file
+    keyfile = key_file
+    print("Gunicorn: 启用HTTPS模式")
+else:
+    print("Gunicorn: 证书文件不存在，使用HTTP模式")
 
 # Worker进程
 workers = multiprocessing.cpu_count() * 2 + 1

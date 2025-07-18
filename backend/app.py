@@ -3,14 +3,27 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 import uuid
 import json
+import os
 from datetime import datetime
 from game_logic import Game, GameRoom
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
 CORS(app, origins=["*"])
-# 对于生产环境，使用eventlet作为async_mode
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+
+# 检查SSL证书文件
+cert_file = 'cert.pem'
+key_file = 'key.pem'
+has_ssl = os.path.exists(cert_file) and os.path.exists(key_file)
+
+if has_ssl:
+    print("检测到SSL证书文件，将使用HTTPS模式")
+    # 对于SSL连接，使用threading作为async_mode，因为eventlet对SSL支持有限
+    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+else:
+    print("未检测到SSL证书文件，使用HTTP模式")
+    # 对于HTTP连接，使用eventlet作为async_mode
+    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # 游戏房间管理
 rooms = {}
@@ -228,7 +241,13 @@ def on_get_valid_positions(data):
 
 if __name__ == '__main__':
     # 开发环境直接运行
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    if has_ssl:
+        print("使用HTTPS模式启动服务器...")
+        socketio.run(app, debug=True, host='0.0.0.0', port=5000, 
+                    ssl_context=(cert_file, key_file))
+    else:
+        print("证书文件不存在，使用HTTP模式启动服务器...")
+        socketio.run(app, debug=True, host='0.0.0.0', port=5000)
 else:
     # 生产环境，gunicorn会直接使用socketio对象
-    pass 
+    pass

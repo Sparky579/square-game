@@ -85,6 +85,7 @@ import GameMenu from './components/GameMenu.vue'
 import GameBoard from './components/GameBoard.vue'
 import PiecePanel from './components/PiecePanel.vue'
 import { getTransformedPiece, PIECES } from './utils/pieces.js'
+import { config } from './config.js'
 
 // 游戏状态
 const gameState = reactive({
@@ -165,7 +166,49 @@ const maxPlayers = computed(() => {
 
 // Socket.IO 连接
 const connectSocket = () => {
-  gameState.socket = io('http://localhost:5000')
+  const serverUrl = config.getSocketUrl()
+  console.log('连接到服务器:', serverUrl)
+  
+  // Socket.IO配置选项
+  const socketOptions = {
+    // 传输方式配置
+    transports: ['polling', 'websocket'], // 优先使用polling，避免WebSocket的证书问题
+    upgrade: true,
+    
+    // 连接配置
+    timeout: 20000,
+    forceNew: true,
+    autoConnect: true,
+    
+    // 轮询配置
+    polling: {
+      extraHeaders: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': 'true'
+      }
+    },
+    
+    // 重连配置
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    maxReconnectionAttempts: 5,
+    randomizationFactor: 0.5
+  }
+  
+  // 如果是HTTPS，添加额外的处理
+  if (config.server.useSSL) {
+    console.log('使用HTTPS连接，配置自签名证书支持')
+    // 注意：这些选项主要用于Node.js环境，浏览器中会被忽略
+    Object.assign(socketOptions, {
+      rejectUnauthorized: false,
+      secure: true,
+      // 强制使用polling传输，因为WebSocket在自签名证书下可能有问题
+      transports: ['polling']
+    })
+  }
+  
+  gameState.socket = io(serverUrl, socketOptions)
 
   gameState.socket.on('connect', () => {
     console.log('已连接到服务器')
@@ -250,11 +293,23 @@ const createRoom = async (roomType = 2) => {
     gameState.roomInfo.maxPlayers = roomType
     gameState.roomInfo.currentPlayersCount = 0
     
-    const response = await fetch('http://localhost:5000/api/create-room', {
+    const apiUrl = `${config.getApiUrl()}/create-room`
+    console.log('创建房间请求URL:', apiUrl)
+    
+    // 配置fetch选项以处理自签名证书
+    const fetchOptions = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ max_players: roomType })
-    })
+    }
+    
+    // 如果是HTTPS，添加额外配置（主要用于开发环境）
+    if (config.server.useSSL) {
+      console.log('使用HTTPS API请求')
+      // 注意：在浏览器中，无法直接设置SSL选项，需要手动信任证书
+    }
+    
+    const response = await fetch(apiUrl, fetchOptions)
     const data = await response.json()
     if (data.error) {
       showMessage(data.error, 'error')
