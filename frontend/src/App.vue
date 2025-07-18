@@ -169,49 +169,38 @@ const connectSocket = () => {
   const serverUrl = config.getSocketUrl()
   console.log('连接到服务器:', serverUrl)
   
-  // Socket.IO配置选项
+  // Socket.IO配置选项 - 使用polling优先，避免WebSocket升级问题
   const socketOptions = {
-    // 传输方式配置
-    transports: ['polling', 'websocket'], // 优先使用polling，避免WebSocket的证书问题
-    upgrade: true,
+    // 传输方式配置 - polling优先，如果WebSocket有问题会自动降级
+    transports: ['polling', 'websocket'],
+    upgrade: true, // 允许从polling升级到websocket
     
     // 连接配置
     timeout: 20000,
     forceNew: true,
     autoConnect: true,
     
-    // 轮询配置
-    polling: {
-      extraHeaders: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Credentials': 'true'
-      }
-    },
-    
     // 重连配置
     reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
+    reconnectionDelay: 2000,
+    reconnectionDelayMax: 10000,
     maxReconnectionAttempts: 5,
     randomizationFactor: 0.5
   }
   
-  // 如果是HTTPS，添加额外的处理
-  if (config.server.useSSL) {
-    console.log('使用HTTPS连接，配置自签名证书支持')
-    // 注意：这些选项主要用于Node.js环境，浏览器中会被忽略
-    Object.assign(socketOptions, {
-      rejectUnauthorized: false,
-      secure: true,
-      // 强制使用polling传输，因为WebSocket在自签名证书下可能有问题
-      transports: ['polling']
-    })
-  }
-  
   gameState.socket = io(serverUrl, socketOptions)
 
+  // 添加更多调试事件
   gameState.socket.on('connect', () => {
-    console.log('已连接到服务器')
+    console.log('已连接到服务器, transport:', gameState.socket.io.engine.transport.name)
+  })
+
+  gameState.socket.on('connect_error', (error) => {
+    console.error('连接错误:', error)
+  })
+
+  gameState.socket.on('disconnect', (reason) => {
+    console.log('连接断开:', reason)
   })
 
   gameState.socket.on('joined_room', (data) => {

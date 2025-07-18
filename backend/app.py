@@ -18,14 +18,27 @@ cert_file = 'cert.pem'
 key_file = 'key.pem'
 has_ssl = os.path.exists(cert_file) and os.path.exists(key_file)
 
+# Socket.IO配置 - 优化WebSocket连接
+socketio_config = {
+    'cors_allowed_origins': "*",
+    'cors_credentials': False,
+    'ping_timeout': 60,
+    'ping_interval': 25,
+    'logger': True,  # 启用日志来调试连接问题
+    'engineio_logger': True,
+    'transports': ['polling', 'websocket']  # 明确指定支持的传输方式
+}
+
 if has_ssl:
     print("检测到SSL证书文件，将使用HTTPS模式")
-    # 对于SSL连接，使用threading作为async_mode，因为eventlet对SSL支持有限
-    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+    # 对于SSL连接，使用threading作为async_mode
+    socketio_config['async_mode'] = 'threading'
+    socketio = SocketIO(app, **socketio_config)
 else:
     print("未检测到SSL证书文件，使用HTTP模式")
     # 对于HTTP连接，使用eventlet作为async_mode
-    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+    socketio_config['async_mode'] = 'eventlet'
+    socketio = SocketIO(app, **socketio_config)
 
 # 游戏房间管理
 rooms = {}
@@ -245,11 +258,12 @@ if __name__ == '__main__':
     # 开发环境直接运行
     if has_ssl:
         print("使用HTTPS模式启动服务器...")
-        socketio.run(app, debug=True, host='0.0.0.0', port=5000, 
+        socketio.run(app, debug=True, host='0.0.0.0', port=25678, 
                     ssl_context=(cert_file, key_file))
     else:
         print("证书文件不存在，使用HTTP模式启动服务器...")
-        socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+        socketio.run(app, debug=True, host='0.0.0.0', port=25678)
 else:
     # 生产环境，gunicorn会直接使用socketio对象
-    pass
+    # 为gunicorn提供正确的WSGI应用对象
+    application = app

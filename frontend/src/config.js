@@ -4,7 +4,7 @@
 // 从环境变量获取配置，如果没有则使用默认值
 const getEnvConfig = () => {
   // Vite 环境变量以 VITE_ 开头
-  const host = import.meta.env.VITE_SERVER_HOST || 'squareapi.pekka.asia';
+  const host = import.meta.env.VITE_SERVER_HOST || 'sqapi.pekka.asia';
   const port = import.meta.env.VITE_SERVER_PORT || '443';
   // 使用HTTPS
   const useSSL = import.meta.env.VITE_USE_SSL === 'false' ? false : true;

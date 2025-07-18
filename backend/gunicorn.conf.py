@@ -3,7 +3,7 @@ import multiprocessing
 import os
 
 # 服务器socket
-bind = "0.0.0.0:5000"
+bind = "0.0.0.0:25678"
 backlog = 2048
 
 # SSL配置 - 如果证书文件存在则启用HTTPS
@@ -17,7 +17,7 @@ else:
     print("Gunicorn: 证书文件不存在，使用HTTP模式")
 
 # Worker进程
-workers = multiprocessing.cpu_count() * 2 + 1
+workers = 1  # 改为1个worker避免会话问题
 worker_class = "eventlet"
 worker_connections = 1000
 timeout = 30
